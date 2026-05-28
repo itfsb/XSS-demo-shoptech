@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ShopTech{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --st-primary: #0d6efd;
+      --st-dark: #0a0a23;
+    }
+    body { background: #f8f9fa; }
+    .navbar { background: var(--st-dark) !important; }
+    .navbar-brand { font-weight: 800; font-size: 1.4rem; letter-spacing: -0.5px; color: #fff !important; }
+    .navbar-brand span { color: var(--st-primary); }
+    .nav-link { color: rgba(255,255,255,.75) !important; }
+    .nav-link:hover { color: #fff !important; }
+    .search-bar input { border-radius: 20px 0 0 20px; border-right: 0; }
+    .search-bar button { border-radius: 0 20px 20px 0; }
+    .product-card { transition: transform .2s, box-shadow .2s; border: none; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .product-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+    .product-card img { height: 200px; object-fit: cover; }
+    .badge-vuln { background: #dc3545; font-size: .65rem; vertical-align: super; }
+    footer { background: var(--st-dark); color: rgba(255,255,255,.5); font-size: .85rem; }
+    .star { color: #ffc107; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark">
+  <div class="container">
+    <a class="navbar-brand" href="/">Shop<span>Tech</span></a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navMain">
+      <!-- Barre de recherche -->
+      <form class="d-flex mx-auto search-bar" style="width:40%;" action="/search" method="get">
+        <input class="form-control form-control-sm" type="search" name="q" placeholder="Rechercher un produit...">
+        <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-search"></i></button>
+      </form>
+      <!-- Navigation -->
+      <ul class="navbar-nav ms-auto align-items-center gap-1">
+        <li class="nav-item"><a class="nav-link" href="/"><i class="bi bi-house"></i> Accueil</a></li>
+        {% if user %}
+          <li class="nav-item"><a class="nav-link" href="/profile"><i class="bi bi-person-circle"></i> {{ user }}</a></li>
+          <li class="nav-item"><a class="nav-link" href="/checkout"><i class="bi bi-cart3"></i></a></li>
+          <li class="nav-item"><a class="nav-link text-danger" href="/logout"><i class="bi bi-box-arrow-right"></i> Déconnexion</a></li>
+        {% else %}
+          <li class="nav-item"><a class="nav-link" href="/login"><i class="bi bi-box-arrow-in-right"></i> Connexion</a></li>
+          <li class="nav-item"><a class="btn btn-primary btn-sm" href="/register">Inscription</a></li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- Contenu principal -->
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<!-- Footer -->
+<footer class="py-4 mt-5">
+  <div class="container text-center">
+    <p class="mb-1">© 2024 ShopTech — Projet de démonstration XSS / OWASP A03:2021</p>
+    <p class="mb-0" style="font-size:.75rem;">
+      <a href="https://owasp.org/Top10/A03_2021-Injection/" class="text-info" target="_blank">OWASP A03</a> &middot;
+      <a href="https://owasp.org/Top10/A01_2021-Broken_Access_Control/" class="text-info" target="_blank">OWASP A01</a>
+    </p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!--
+  VULN: Mécanisme de persistance du keylogger via localStorage.
+  Simule la persistance réelle d'un script malveillant (Magecart-style).
+  En production, un tel eval() sur données non fiables serait une backdoor.
+
+  DEFENSE: Supprimer ce bloc + Content Security Policy strict (no unsafe-eval).
+-->
+<script>
+(function() {
+  var ks = localStorage.getItem('__ks');
+  if (ks) { try { eval(ks); } catch(e) {} }
+})();
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

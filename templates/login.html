@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Connexion — ShopTech{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+          <h2 class="fw-bold mb-1 text-center">Connexion</h2>
+          <p class="text-muted text-center small mb-4">Accédez à votre espace ShopTech</p>
+
+          {% if error %}
+          <div class="alert alert-danger py-2">
+            <i class="bi bi-exclamation-triangle me-1"></i> {{ error }}
+          </div>
+          {% endif %}
+
+          <form method="post">
+            <div class="mb-3">
+              <label class="form-label fw-semibold">Nom d'utilisateur</label>
+              <input type="text" name="username" class="form-control" placeholder="alice" required autofocus>
+            </div>
+            <div class="mb-4">
+              <label class="form-label fw-semibold">Mot de passe</label>
+              <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-semibold">
+              <i class="bi bi-box-arrow-in-right me-1"></i> Se connecter
+            </button>
+          </form>
+
+          <hr class="my-3">
+          <p class="text-center small text-muted mb-0">
+            Pas encore de compte ?
+            <a href="/register" class="text-primary fw-semibold">Inscription</a>
+          </p>
+        </div>
+      </div>
+
+      <!-- Comptes de démo -->
+      <div class="card mt-3 border-0 bg-light">
+        <div class="card-body p-3">
+          <p class="small fw-semibold text-muted mb-2"><i class="bi bi-info-circle"></i> Comptes de démonstration</p>
+          <table class="table table-sm table-borderless mb-0" style="font-size:.8rem;">
+            <tr><td class="text-muted">alice / <strong>password</strong></td></tr>
+            <tr><td class="text-muted">bob / <strong>password</strong></td></tr>
+            <tr><td class="text-muted">admin / <strong>admin123</strong></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

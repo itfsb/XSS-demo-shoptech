@@ -1,0 +1,59 @@
+name: Security Scan
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  sast:
+    name: SAST & Dependency Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install project dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install security tools
+        run: pip install bandit pip-audit
+
+      # ── SAST ────────────────────────────────────────────────────────────────
+      # Génère un rapport JSON + échoue sur tout finding HIGH ou MEDIUM.
+      # Les findings LOW intentionnels sont supprimés avec # nosec dans le code.
+      - name: SAST — Bandit
+        run: |
+          bandit -r . \
+            --exclude ./.venv,./venv \
+            --severity-level medium \
+            -f json -o bandit-report.json
+        # continue-on-error pour uploader le rapport même en cas de findings
+        continue-on-error: true
+        id: bandit
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+      - name: Fail if Bandit found HIGH/MEDIUM issues
+        if: steps.bandit.outcome == 'failure'
+        run: |
+          echo "Bandit a detecte des vulnerabilites HIGH ou MEDIUM."
+          echo "Consulter l'artifact bandit-report pour le detail."
+          exit 1
+
+      # ── Dependency audit ────────────────────────────────────────────────────
+      # Scanne uniquement les dependances du projet (requirements.txt).
+      - name: Dependency audit — pip-audit
+        run: pip-audit -r requirements.txt
