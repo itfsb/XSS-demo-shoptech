@@ -109,9 +109,9 @@ Ouvrir ensuite dans le navigateur :
 
 **Fichier concerné :** `templates/search.html`  
 **Point d'entrée :** paramètre `q` de la route `/search`  
-**Caractéristique :** le payload n'est jamais stocké — il rebondit directement dans la réponse HTTP.
+**Caractéristique :** le payload n'est jamais stocké - il rebondit directement dans la réponse HTTP.
 
-#### 1.1 — Proof of Concept (popup)
+#### 1.1 - Proof of Concept (popup)
 
 Coller directement dans la barre d'adresse :
 
